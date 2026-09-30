@@ -44,6 +44,7 @@ jobs:
           allowlist: |
             src/**
             test/**
+            docs/**
             README.md
             LICENSE
             action.yml

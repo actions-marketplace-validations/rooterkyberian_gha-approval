@@ -4,6 +4,9 @@ A GitHub Action that approves a pull request only when a trusted review explicit
 recommends approval and all configured policy rules pass. Defaults target GitHub
 Copilot; the reviewer username and detection regex are configurable.
 
+Start with the [repository setup guide](docs/SETUP.md) for permissions, Copilot
+settings, required CI and approvals, private action access, and a test PR.
+
 ## Usage
 
 Add this workflow to the consuming repository's default branch:
@@ -21,9 +24,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   approve:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
-      - uses: rooterkyberian/gha-approval@main
+      - uses: rooterkyberian/gha-approval@v0.1
         with:
           max-changed-lines: '1000'
           line-count-exclude: |
@@ -33,6 +36,8 @@ jobs:
             src/**
             test/**
             docs/**
+            uv.lock
+            **/package-lock.json
           denylist: |
             src/auth/**
             **/*.pem

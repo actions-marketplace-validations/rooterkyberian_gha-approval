@@ -1,6 +1,7 @@
 {
   "name": "gha-approval",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": { "test": "node --test --test-isolation=none" },
