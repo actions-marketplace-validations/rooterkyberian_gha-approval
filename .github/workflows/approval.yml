@@ -1,0 +1,51 @@
+name: gha-approval
+
+on:
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  workflow_dispatch:
+    inputs:
+      pull-request-number:
+        description: Pull request to evaluate
+        required: true
+        type: string
+      dry-run:
+        description: Evaluate without submitting an approval
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: gha-approval-${{ github.event.pull_request.number || inputs.pull-request-number }}
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.review.user.login == 'copilot-pull-request-reviewer[bot]'
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      # Pin to reviewed action code; this privileged job never executes PR code.
+      - name: Apply approval policy
+        uses: rooterkyberian/gha-approval@a98ca091889b4e77f68bbc50156e5dcdf2ce79d5
+        with:
+          pull-request-number: ${{ github.event.pull_request.number || inputs.pull-request-number }}
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run && 'true' || 'false' }}
+          max-changed-lines: '1000'
+          review-author: copilot-pull-request-reviewer[bot]
+          allowlist: |
+            src/**
+            test/**
+            README.md
+            LICENSE
+            action.yml
+            package.json
+            package-lock.json
+            .gitignore
+          denylist: |
+            .github/**

@@ -142,6 +142,23 @@ does not retract an existing approval when rules or an assessment later change.
 
 ## Development
 
+This repository uses the action in [`.github/workflows/approval.yml`](.github/workflows/approval.yml).
+Copilot review submissions and edits trigger evaluation with a strict 1000-line
+limit. Source, tests, README, license, action metadata, package manifests and
+`.gitignore` are allowlisted; all `.github/` changes are denied. Mandatory instruction
+protections still apply. The workflow pins the action to a reviewed commit; update
+that SHA deliberately when adopting action changes.
+
+The workflow can also be dispatched manually with a PR number; manual runs default
+to dry run. Copilot must have reviewed the current PR head and recommended approval
+before even a manual run can approve. Request a Copilot review in the PR's Reviewers
+menu if the repository does not already request reviews automatically.
+
+The approval job uses `ubuntu-slim`. The action needs only the runner's Node.js 24
+runtime and outbound HTTPS to the GitHub API; no Docker, package install, checkout,
+or privileged operations are needed. GitHub limits slim jobs to 15 minutes; this
+repository caps the approval job at 5 minutes.
+
 Node.js 24 or newer. No runtime or development dependencies.
 
 ```sh
