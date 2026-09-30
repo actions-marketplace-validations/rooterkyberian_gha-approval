@@ -1,0 +1,41 @@
+name: gha-approval
+description: Approve PRs only after an explicit Copilot recommendation and configurable policy checks.
+author: rooterkyberian
+branding:
+  icon: check-circle
+  color: green
+inputs:
+  github-token:
+    description: Token with pull-requests write permission.
+    default: ${{ github.token }}
+  pull-request-number:
+    description: PR number; defaults to the event pull request.
+  max-changed-lines:
+    description: Exclusive upper limit for additions plus deletions.
+    default: '1000'
+  allowlist:
+    description: Newline-separated allowed file globs; empty allows all otherwise permitted paths.
+  denylist:
+    description: Newline-separated blocked file globs, in addition to mandatory instruction protections.
+  dry-run:
+    description: Evaluate all rules without submitting an approval.
+    default: 'false'
+  review-author:
+    description: Exact GitHub username whose latest review can authorize approval.
+    default: copilot-pull-request-reviewer[bot]
+  approval-regexp:
+    description: JavaScript regular expression source tested against the trimmed review body, with the Unicode flag. Empty uses the strict Copilot heading detector.
+outputs:
+  eligible:
+    description: Whether every approval requirement passed.
+  approved:
+    description: Whether this run submitted an approving review.
+  head-sha:
+    description: Evaluated PR head commit.
+  reviewer-review-id:
+    description: Latest configured reviewer review ID for the evaluated commit.
+  reasons:
+    description: JSON array explaining blocked or skipped approval.
+runs:
+  using: node24
+  main: src/main.js
