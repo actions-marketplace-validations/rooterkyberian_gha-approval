@@ -15,7 +15,7 @@ Add this workflow to the consuming repository's default branch:
 name: Approve eligible PRs
 on:
   workflow_run:
-    workflows: [Running Copilot Code Review]
+    workflows: [Copilot, Running Copilot Code Review]
     types: [completed]
 permissions:
   contents: read

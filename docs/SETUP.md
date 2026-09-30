@@ -43,7 +43,7 @@ name: gha-approval
 
 on:
   workflow_run:
-    workflows: [Running Copilot Code Review]
+    workflows: [Copilot, Running Copilot Code Review]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -103,8 +103,9 @@ Set `post-comment: 'false'` to disable decision comments. Dry runs never post an
 approval or comment. The [README](../README.md#rules) describes all glob rules and
 mandatory instruction protections.
 
-`workflow_run` executes the workflow from the default branch after **Running
-Copilot Code Review** completes. It must be installed on that branch before it can
+`workflow_run` executes the workflow from the default branch after Copilot's
+review workflow completes. The filter includes its registered name, **Copilot**,
+and its displayed run name, **Running Copilot Code Review**. It must be installed on that branch before it can
 trigger. The action reads current PR and review data from GitHub; it does not
 download upstream artifacts or execute PR code. If GitHub changes Copilot's workflow
 name, update the `workflows` filter to match the name in the Actions tab. Reviews

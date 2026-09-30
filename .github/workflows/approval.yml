@@ -2,7 +2,7 @@ name: gha-approval
 
 on:
   workflow_run:
-    workflows: [Running Copilot Code Review]
+    workflows: [Copilot, Running Copilot Code Review]
     types: [completed]
   workflow_dispatch:
     inputs:
