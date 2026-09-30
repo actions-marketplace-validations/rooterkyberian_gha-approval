@@ -15,7 +15,7 @@ Add this workflow to the consuming repository's default branch:
 name: Approve eligible PRs
 on:
   workflow_run:
-    workflows: [Copilot, Running Copilot Code Review]
+    workflows: [Copilot]
     types: [completed]
 permissions:
   contents: read
@@ -52,6 +52,10 @@ jobs:
 Pin `uses` to a reviewed commit SHA for production. This public action requires no
 checkout and never executes PR code. If you use a private copy, allow the consuming
 repositories to access it under **Settings → Actions → General → Access**.
+
+GitHub can require maintainer approval before a Copilot-triggered workflow runs.
+Our tests still hit that gate after disabling Copilot's workflow approval setting,
+including with `workflow_run`. See the [tested gate behavior and manual fallback](docs/SETUP.md#githubs-workflow-approval-gate).
 
 Enable **Allow GitHub Actions to create and approve pull requests** in the consuming
 repository's Actions settings. Repository and organization policies determine
@@ -126,7 +130,8 @@ with:
   approval-regexp: '^Decision: APPROVE(?:\n|$)'
 ```
 
-The example runs after Copilot's review workflow completes and verifies the
+The example triggers after Copilot's review workflow completes, subject to
+GitHub's workflow approval gate, and verifies the
 configured reviewer against REST review metadata. For another reviewer that uses
 review webhooks, use `pull_request_review` with `types: [submitted, edited, dismissed]`
 and `github.event.pull_request.number` for the PR number and concurrency group.
@@ -175,8 +180,9 @@ does not retract an existing approval when rules or an assessment later change.
 ## Development
 
 This repository uses the action in [`.github/workflows/approval.yml`](.github/workflows/approval.yml).
-Completion of Copilot's review workflow triggers evaluation with a strict 1000-line
-limit. Source, tests, README, license, action metadata, package manifests and
+Completion of Copilot's review workflow triggers a run with a strict 1000-line
+limit; GitHub may require a maintainer to allow the run before evaluation starts.
+Source, tests, README, license, action metadata, package manifests and
 `.gitignore` are allowlisted; all `.github/` changes are denied. Mandatory instruction
 protections still apply. The workflow pins the action to a reviewed commit; update
 that SHA deliberately when adopting action changes.
