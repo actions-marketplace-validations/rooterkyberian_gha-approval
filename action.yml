@@ -11,8 +11,10 @@ inputs:
   pull-request-number:
     description: PR number; defaults to the event pull request.
   max-changed-lines:
-    description: Exclusive upper limit for additions plus deletions.
+    description: Exclusive upper limit for additions plus deletions; 0 disables the limit.
     default: '1000'
+  line-count-exclude:
+    description: Newline-separated file globs excluded from the line count. Other path rules still apply; both paths of a rename must match to exclude it.
   allowlist:
     description: Newline-separated allowed file globs; empty allows all otherwise permitted paths.
   denylist:

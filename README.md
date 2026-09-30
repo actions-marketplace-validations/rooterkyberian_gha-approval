@@ -27,6 +27,9 @@ jobs:
       - uses: rooterkyberian/gha-approval@main
         with:
           max-changed-lines: '1000'
+          line-count-exclude: |
+            uv.lock
+            **/package-lock.json
           allowlist: |
             src/**
             test/**
@@ -56,7 +59,14 @@ Supplying a token cannot bypass repository or organization permission restrictio
 ## Rules
 
 - Added plus deleted lines must be **strictly less than** `max-changed-lines`
-  (default 1000). Renames, binaries and metadata-only changes still undergo path checks.
+  (default 1000). Set `max-changed-lines: '0'` to disable this size check.
+- `line-count-exclude` accepts newline-separated file globs (for example, `uv.lock`).
+  When set, the size check sums additions plus deletions for nonexcluded files.
+  Excluded files still must pass all allowlist, denylist and instruction rules;
+  add them to your allowlist too if you use one. A rename is excluded only when
+  both its old and new paths match the exclusion list. Missing counts for a
+  nonexcluded file block approval. If every file is excluded, the count is zero.
+  Renames, binaries and metadata-only changes still undergo path checks.
 - Every changed file must match at least one allowlist glob when an allowlist is set.
 - No changed file may match a denylist glob. A denylist match always wins.
 - Either list can be used alone, or both can be combined. Empty lists impose no
@@ -122,7 +132,8 @@ Regex configuration must live in a trusted workflow, never be supplied from PR t
 | --- | --- | --- |
 | `github-token` | `${{ github.token }}` | Token with pull requests write permission |
 | `pull-request-number` | Event's PR number | Override for trusted/manual workflows |
-| `max-changed-lines` | `1000` | Exclusive additions + deletions threshold |
+| `max-changed-lines` | `1000` | Exclusive additions + deletions threshold; `0` disables |
+| `line-count-exclude` | Empty | Newline-separated globs omitted from the line count |
 | `allowlist` | Empty | Newline-separated allowed globs |
 | `denylist` | Empty | Newline-separated additional blocked globs |
 | `review-author` | `copilot-pull-request-reviewer[bot]` | Exact trusted reviewer username |
@@ -165,7 +176,8 @@ Node.js 24 or newer. No runtime or development dependencies.
 npm test
 ```
 
-Tests cover policy boundaries, protected instructions and renames, list precedence,
+Tests cover policy boundaries, disabled limits, line-count exclusions and renames,
+protected instructions, list precedence,
 review parsing and identity, custom regexes, stale/newer reviews, pagination, dry runs,
 duplicate approvals and changes detected before submission. CI runs the same tests.
 

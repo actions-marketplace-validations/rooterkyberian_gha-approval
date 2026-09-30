@@ -32,21 +32,32 @@ export function compileGlob(pattern) {
 }
 
 export function evaluatePolicy(pr, files, {
-  maxChangedLines = 1000, allowlist = [], denylist = [],
+  maxChangedLines = 1000, lineCountExclude = [], allowlist = [], denylist = [],
 } = {}) {
-  if (!Number.isSafeInteger(maxChangedLines) || maxChangedLines <= 0) {
-    throw new Error('maxChangedLines must be a positive safe integer.');
+  if (!Number.isSafeInteger(maxChangedLines) || maxChangedLines < 0) {
+    throw new Error('maxChangedLines must be a nonnegative safe integer; 0 disables the limit.');
   }
+  const exclude = lineCountExclude.map(compileGlob);
   const allow = allowlist.map(compileGlob);
   const deny = [...protectedGlobs, ...denylist].map(compileGlob);
   const reasons = [];
   if (pr.state !== 'open') reasons.push('Pull request is not open.');
   if (pr.draft !== false) reasons.push('Pull request is draft or draft status is unknown.');
-  if (!Number.isSafeInteger(pr.additions) || pr.additions < 0 ||
-      !Number.isSafeInteger(pr.deletions) || pr.deletions < 0) {
-    reasons.push('Changed line counts are unavailable.');
-  } else if (pr.additions + pr.deletions >= maxChangedLines) {
-    reasons.push(`Changed lines (${pr.additions + pr.deletions}) must be less than ${maxChangedLines}.`);
+  if (maxChangedLines > 0) {
+    // Aggregate counts preserve existing behavior unless file exclusions are used.
+    const countedFiles = exclude.length ? files.filter(file => {
+      const paths = [file.filename, file.previous_filename].filter(Boolean);
+      // Renaming source into an excluded file must not bypass the size gate.
+      return !paths.length || !paths.every(path => exclude.some(pattern => pattern.test(path)));
+    }) : [pr];
+    if (countedFiles.some(file => !Number.isSafeInteger(file.additions) || file.additions < 0 ||
+        !Number.isSafeInteger(file.deletions) || file.deletions < 0)) {
+      reasons.push('Changed line counts are unavailable.');
+    } else {
+      const changedLines = countedFiles.reduce((sum, file) => sum + file.additions + file.deletions, 0);
+      if (!Number.isSafeInteger(changedLines)) reasons.push('Changed line counts exceed the supported range.');
+      else if (changedLines >= maxChangedLines) reasons.push(`Changed lines (${changedLines}) must be less than ${maxChangedLines}.`);
+    }
   }
   if (!Number.isSafeInteger(pr.changed_files) || files.length !== pr.changed_files || files.length === 0) {
     reasons.push('Complete nonempty changed file list is required.');

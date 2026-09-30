@@ -9,13 +9,14 @@ const pr = { state: 'open', draft: false, additions: 5, deletions: 3, changed_fi
 const review = { id: 10, user: { login: copilotLogin, type: 'Bot' }, state: 'COMMENTED',
   body: positive, commit_id: 'head', submitted_at: '2026-09-30T18:22:14Z' };
 
-function scenario({ reviews = [review], freshReviews = reviews, freshPr = pr, files = [{ filename: 'src/main.js' }] } = {}) {
+function scenario({ reviews = [review], freshReviews = reviews, pullRequest = pr, freshPr = pullRequest,
+  files = [{ filename: 'src/main.js', additions: 5, deletions: 3 }] } = {}) {
   const writes = [];
   let reads = 0, reviewReads = 0;
   const api = {
     async request(path, method = 'GET', body) {
       if (method === 'POST') { writes.push({ path, body }); return { id: 20 }; }
-      return ++reads === 1 ? pr : freshPr;
+      return ++reads === 1 ? pullRequest : freshPr;
     },
     async list(path) {
       if (path.endsWith('/files')) return files;
@@ -101,4 +102,20 @@ test('custom username and regex work; invalid or empty-matching regex fails', as
   assert.equal((await s.run({ reviewAuthor: 'my-reviewer', approvalRegexp: '^Decision: APPROVE$' })).approved, true);
   for (const approvalRegexp of ['[', '', '.*']) await assert.rejects(s.run({ approvalRegexp }));
   await assert.rejects(s.run({ reviewAuthor: '' }));
+});
+
+test('disabled limits and glob exclusions work through the full approval flow', async () => {
+  const large = { ...pr, additions: 2005, deletions: 2003, changed_files: 2 };
+  const changed = [
+    { filename: 'src/main.js', additions: 5, deletions: 3 },
+    { filename: 'uv.lock', additions: 2000, deletions: 2000 },
+  ];
+  for (const policy of [{ maxChangedLines: 0 }, { lineCountExclude: ['**/*.lock'] }]) {
+    const positive = scenario({ pullRequest: large, files: changed });
+    assert.equal((await positive.run({ policy })).approved, true);
+    assert.equal(positive.writes.length, 1);
+    const missingReview = scenario({ pullRequest: large, files: changed, reviews: [] });
+    assert.equal((await missingReview.run({ policy })).eligible, false);
+    assert.equal(missingReview.writes.length, 0);
+  }
 });
