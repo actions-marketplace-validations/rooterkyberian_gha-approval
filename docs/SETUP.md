@@ -43,7 +43,7 @@ name: gha-approval
 
 on:
   workflow_run:
-    workflows: [Copilot, Running Copilot Code Review]
+    workflows: [Copilot]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -104,11 +104,18 @@ approval or comment. The [README](../README.md#rules) describes all glob rules a
 mandatory instruction protections.
 
 `workflow_run` executes the workflow from the default branch after Copilot's
-review workflow completes. The filter includes its registered name, **Copilot**,
-and its displayed run name, **Running Copilot Code Review**. It must be installed on that branch before it can
-trigger. The action reads current PR and review data from GitHub; it does not
+review workflow completes. The filter uses its registered workflow name,
+**Copilot**; the displayed run title, **Running Copilot Code Review**, is not the
+registered name. It must be installed on that branch before it can trigger.
+GitHub can still require a maintainer to approve the run; see the gate results below.
+This repository's checked-in `.github/workflows/approval.yml` also retains
+`Running Copilot Code Review` as an extra filter entry. That entry is redundant
+here: the registered `Copilot` entry is what matches. The consumer example above
+uses that registered name alone.
+The action reads current PR and review data from GitHub; it does not
 download upstream artifacts or execute PR code. If GitHub changes Copilot's workflow
-name, update the `workflows` filter to match the name in the Actions tab. Reviews
+name, update the `workflows` filter to match its registered workflow name. The
+Actions workflows API exposes that name under `name`; a run title can differ. Reviews
 that do not use Copilot's Actions workflow need another trigger or manual dispatch.
 See [GitHub's workflow_run event](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run).
 
@@ -134,17 +141,21 @@ before gha-approval starts. This GitHub gate is separate from required PR review
 Until the workflow runs, the action cannot evaluate or approve the PR.
 
 GitHub documents a repository setting at **Settings → Copilot → Cloud agent →
-Actions workflow approval → Require approval for workflow runs**. Disabling it
-allows Copilot-triggered workflows to run without approval and affects Copilot
-workflows generally. In this repository's test, disabling it did **not** remove
-the gate for a `pull_request_review` event from Copilot. The example above uses
-`workflow_run` so evaluation starts after the review workflow completes instead.
+Actions workflow approval → Require approval for workflow runs**. In this
+repository, disabling it did **not** remove the gate for a `pull_request_review`
+event from Copilot. The follow-up `workflow_run` test triggered successfully from
+the default branch but also stopped with `action_required`, before any job ran.
+Using `workflow_run` did not bypass the gate. See the
+[review-event test](https://github.com/rooterkyberian/gha-approval/actions/runs/36788729940)
+and [workflow-run test](https://github.com/rooterkyberian/gha-approval/actions/runs/36789547531).
 See
 [GitHub's Copilot workflow approval setting](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/configuring-agent-settings).
 
-For workflows that still use gated review events, use **Approve workflows to run**
-or rerun the workflow as a maintainer. A manual dispatch also evaluates the selected PR, but
-still requires the configured review recommendation and every policy rule.
+When a run is gated, use **Approve workflows to run** or rerun the workflow as a
+maintainer. A manual dispatch also evaluates the selected PR and still requires
+the configured review recommendation and every policy rule. This repository
+verified approvals and decision comments using maintainer-triggered runs; fully
+unattended Copilot-triggered execution remains subject to GitHub's gate.
 
 ## 5. Require approvals and CI before merging
 
@@ -184,6 +195,7 @@ enter the PR number, and leave **dry-run** checked. The job summary includes
 | Symptom | Check |
 | --- | --- |
 | No approval job started | Workflow is on the default branch; Copilot's review workflow name matches; the completed run is attached to a PR |
+| Workflow awaiting approval | Approve the run, rerun as a maintainer, or dispatch manually; the tested Copilot setting and `workflow_run` did not remove this gate |
 | Green job, no approving review | Decision comment/job summary: allowlist, denylist, line limit, draft state, stale review, or dry run |
 | Copilot recommends approval, action blocks | Recommendation is only one requirement; every changed path and the size limit must pass too |
 | A new commit loses approval | Expected when stale approvals are dismissed; request a fresh review of that head |
