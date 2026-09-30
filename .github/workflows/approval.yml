@@ -24,9 +24,8 @@ concurrency:
 
 jobs:
   approve:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.review.user.login == 'copilot-pull-request-reviewer[bot]'
+    # Verify the configured author using REST reviews inside the action rather
+    # than filtering webhook usernames, which can differ for Copilot.
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:

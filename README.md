@@ -21,7 +21,6 @@ concurrency:
   cancel-in-progress: false
 jobs:
   approve:
-    if: github.event.review.user.login == 'copilot-pull-request-reviewer[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: rooterkyberian/gha-approval@main
@@ -117,7 +116,9 @@ with:
   approval-regexp: '^Decision: APPROVE(?:\n|$)'
 ```
 
-Update the workflow's job `if` condition to match the new username too.
+The workflow evaluates every review event; the action verifies the configured
+reviewer against REST review metadata. Do not filter solely on the webhook reviewer
+username: Copilot webhook and REST identities can differ.
 `approval-regexp` is JavaScript regex **source**, without `/.../` delimiters, compiled
 with the `u` flag. The body is trimmed and CRLF is normalized to LF. Inline multiline
 matching is not enabled; use explicit newline expressions or `[\s\S]` as needed.
