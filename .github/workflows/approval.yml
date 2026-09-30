@@ -31,7 +31,7 @@ jobs:
     steps:
       # Pin to reviewed action code; this privileged job never executes PR code.
       - name: Apply approval policy
-        uses: rooterkyberian/gha-approval@a641305ae57c2dd1db417f1a85c52d21aac39022
+        uses: rooterkyberian/gha-approval@9ac997db10ef829f40d6ed305646d425d9579941
         with:
           pull-request-number: ${{ github.event.pull_request.number || inputs.pull-request-number }}
           dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run && 'true' || 'false' }}
@@ -40,6 +40,7 @@ jobs:
             **/*.lock
             **/package-lock.json
           review-author: copilot-pull-request-reviewer[bot]
+          post-comment: 'true'
           allowlist: |
             src/**
             test/**
