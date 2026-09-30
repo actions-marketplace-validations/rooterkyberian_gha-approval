@@ -6,10 +6,10 @@ Copilot, but `review-author` and `approval-regexp` support other reviewers.
 
 ## 1. Make the action available
 
-Use `rooterkyberian/gha-approval@v0.1` if your repository can access this action.
+This action is public; use `rooterkyberian/gha-approval@v0.1` from your repository.
 For production, pin to the full commit SHA shown on the release instead of a tag.
 
-This action repository is private. GitHub permits private action sharing with
+If you host a private copy, GitHub permits private action sharing with
 other private repositories under the same user or organization. In the **action
 repository**, open **Settings → Actions → General → Access**, select the permitted
 owner scope, and save. That setting does not grant access across arbitrary owners
@@ -42,8 +42,9 @@ through your normal review process.
 name: gha-approval
 
 on:
-  pull_request_review:
-    types: [submitted, edited, dismissed]
+  workflow_run:
+    workflows: [Running Copilot Code Review]
+    types: [completed]
   workflow_dispatch:
     inputs:
       pull-request-number:
@@ -60,17 +61,21 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: gha-approval-${{ github.event.pull_request.number || inputs.pull-request-number }}
+  group: gha-approval-${{ github.event.workflow_run.pull_requests[0].number || inputs.pull-request-number }}
   cancel-in-progress: false
 
 jobs:
   approve:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.pull_requests[0].number != null)
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
       - uses: rooterkyberian/gha-approval@v0.1
         with:
-          pull-request-number: ${{ github.event.pull_request.number || inputs.pull-request-number }}
+          pull-request-number: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pull-request-number }}
           dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run && 'true' || 'false' }}
           max-changed-lines: '1000'
           line-count-exclude: |
@@ -98,6 +103,14 @@ Set `post-comment: 'false'` to disable decision comments. Dry runs never post an
 approval or comment. The [README](../README.md#rules) describes all glob rules and
 mandatory instruction protections.
 
+`workflow_run` executes the workflow from the default branch after **Running
+Copilot Code Review** completes. It must be installed on that branch before it can
+trigger. The action reads current PR and review data from GitHub; it does not
+download upstream artifacts or execute PR code. If GitHub changes Copilot's workflow
+name, update the `workflows` filter to match the name in the Actions tab. Reviews
+that do not use Copilot's Actions workflow need another trigger or manual dispatch.
+See [GitHub's workflow_run event](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run).
+
 ## 4. Configure Copilot reviews
 
 Request Copilot reviews manually in the PR's **Reviewers** menu, or enable
@@ -122,12 +135,14 @@ Until the workflow runs, the action cannot evaluate or approve the PR.
 GitHub documents a repository setting at **Settings → Copilot → Cloud agent →
 Actions workflow approval → Require approval for workflow runs**. Disabling it
 allows Copilot-triggered workflows to run without approval and affects Copilot
-workflows generally. This repository is testing its effect on code-review events;
-verify it with the test below rather than assuming the prompt is removed. See
+workflows generally. In this repository's test, disabling it did **not** remove
+the gate for a `pull_request_review` event from Copilot. The example above uses
+`workflow_run` so evaluation starts after the review workflow completes instead.
+See
 [GitHub's Copilot workflow approval setting](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/configuring-agent-settings).
 
-If you keep that setting enabled, use **Approve workflows to run** or rerun the
-workflow as a maintainer. A manual dispatch also evaluates the selected PR, but
+For workflows that still use gated review events, use **Approve workflows to run**
+or rerun the workflow as a maintainer. A manual dispatch also evaluates the selected PR, but
 still requires the configured review recommendation and every policy rule.
 
 ## 5. Require approvals and CI before merging
@@ -167,7 +182,7 @@ enter the PR number, and leave **dry-run** checked. The job summary includes
 
 | Symptom | Check |
 | --- | --- |
-| No approval job started | Workflow is on the default branch; review event fired; GitHub is not waiting for workflow approval |
+| No approval job started | Workflow is on the default branch; Copilot's review workflow name matches; the completed run is attached to a PR |
 | Green job, no approving review | Decision comment/job summary: allowlist, denylist, line limit, draft state, stale review, or dry run |
 | Copilot recommends approval, action blocks | Recommendation is only one requirement; every changed path and the size limit must pass too |
 | A new commit loses approval | Expected when stale approvals are dismissed; request a fresh review of that head |

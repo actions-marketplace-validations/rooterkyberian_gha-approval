@@ -14,20 +14,25 @@ Add this workflow to the consuming repository's default branch:
 ```yaml
 name: Approve eligible PRs
 on:
-  pull_request_review:
-    types: [submitted, edited, dismissed]
+  workflow_run:
+    workflows: [Running Copilot Code Review]
+    types: [completed]
 permissions:
   contents: read
   pull-requests: write
 concurrency:
-  group: gha-approval-${{ github.event.pull_request.number }}
+  group: gha-approval-${{ github.event.workflow_run.pull_requests[0].number }}
   cancel-in-progress: false
 jobs:
   approve:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.pull_requests[0].number != null
     runs-on: ubuntu-slim
     steps:
       - uses: rooterkyberian/gha-approval@v0.1
         with:
+          pull-request-number: ${{ github.event.workflow_run.pull_requests[0].number }}
           max-changed-lines: '1000'
           line-count-exclude: |
             uv.lock
@@ -44,8 +49,8 @@ jobs:
           dry-run: 'false'
 ```
 
-Pin `uses` to a reviewed commit SHA for production. This action requires no checkout
-and never executes PR code. While this repository is private, allow the consuming
+Pin `uses` to a reviewed commit SHA for production. This public action requires no
+checkout and never executes PR code. If you use a private copy, allow the consuming
 repositories to access it under **Settings → Actions → General → Access**.
 
 Enable **Allow GitHub Actions to create and approve pull requests** in the consuming
@@ -121,9 +126,11 @@ with:
   approval-regexp: '^Decision: APPROVE(?:\n|$)'
 ```
 
-The workflow evaluates every review event; the action verifies the configured
-reviewer against REST review metadata. Do not filter solely on the webhook reviewer
-username: Copilot webhook and REST identities can differ.
+The example runs after Copilot's review workflow completes and verifies the
+configured reviewer against REST review metadata. For another reviewer that uses
+review webhooks, use `pull_request_review` with `types: [submitted, edited, dismissed]`
+and `github.event.pull_request.number` for the PR number and concurrency group.
+Do not filter solely on webhook usernames: Copilot webhook and REST identities can differ.
 `approval-regexp` is JavaScript regex **source**, without `/.../` delimiters, compiled
 with the `u` flag. The body is trimmed and CRLF is normalized to LF. Inline multiline
 matching is not enabled; use explicit newline expressions or `[\s\S]` as needed.
@@ -168,7 +175,7 @@ does not retract an existing approval when rules or an assessment later change.
 ## Development
 
 This repository uses the action in [`.github/workflows/approval.yml`](.github/workflows/approval.yml).
-Copilot review submissions and edits trigger evaluation with a strict 1000-line
+Completion of Copilot's review workflow triggers evaluation with a strict 1000-line
 limit. Source, tests, README, license, action metadata, package manifests and
 `.gitignore` are allowlisted; all `.github/` changes are denied. Mandatory instruction
 protections still apply. The workflow pins the action to a reviewed commit; update
