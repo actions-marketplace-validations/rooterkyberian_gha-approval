@@ -108,6 +108,10 @@ review workflow completes. The filter uses its registered workflow name,
 **Copilot**; the displayed run title, **Running Copilot Code Review**, is not the
 registered name. It must be installed on that branch before it can trigger.
 GitHub can still require a maintainer to approve the run; see the gate results below.
+This repository's checked-in `.github/workflows/approval.yml` also retains
+`Running Copilot Code Review` as an extra filter entry. That entry is redundant
+here: the registered `Copilot` entry is what matches. The consumer example above
+uses that registered name alone.
 The action reads current PR and review data from GitHub; it does not
 download upstream artifacts or execute PR code. If GitHub changes Copilot's workflow
 name, update the `workflows` filter to match its registered workflow name. The
