@@ -20,8 +20,11 @@ inputs:
   denylist:
     description: Newline-separated blocked file globs, in addition to mandatory instruction protections.
   dry-run:
-    description: Evaluate all rules without submitting an approval.
+    description: Evaluate all rules without submitting an approval or decision comment.
     default: 'false'
+  post-comment:
+    description: Post a PR comment explaining each completed approval decision; ignored during dry runs.
+    default: 'true'
   review-author:
     description: Exact GitHub username whose latest review can authorize approval.
     default: copilot-pull-request-reviewer[bot]
@@ -36,6 +39,8 @@ outputs:
     description: Evaluated PR head commit.
   reviewer-review-id:
     description: Latest configured reviewer review ID for the evaluated commit.
+  decision-comment-id:
+    description: Posted decision comment ID; empty when comments are disabled or in dry runs.
   reasons:
     description: JSON array explaining blocked or skipped approval.
 runs:

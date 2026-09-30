@@ -4,6 +4,9 @@ A GitHub Action that approves a pull request only when a trusted review explicit
 recommends approval and all configured policy rules pass. Defaults target GitHub
 Copilot; the reviewer username and detection regex are configurable.
 
+Start with the [repository setup guide](docs/SETUP.md) for permissions, Copilot
+settings, required CI and approvals, private action access, and a test PR.
+
 ## Usage
 
 Add this workflow to the consuming repository's default branch:
@@ -11,20 +14,25 @@ Add this workflow to the consuming repository's default branch:
 ```yaml
 name: Approve eligible PRs
 on:
-  pull_request_review:
-    types: [submitted, edited, dismissed]
+  workflow_run:
+    workflows: [Copilot, Running Copilot Code Review]
+    types: [completed]
 permissions:
   contents: read
   pull-requests: write
 concurrency:
-  group: gha-approval-${{ github.event.pull_request.number }}
+  group: gha-approval-${{ github.event.workflow_run.pull_requests[0].number }}
   cancel-in-progress: false
 jobs:
   approve:
-    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.pull_requests[0].number != null
+    runs-on: ubuntu-slim
     steps:
-      - uses: rooterkyberian/gha-approval@main
+      - uses: rooterkyberian/gha-approval@v0.1
         with:
+          pull-request-number: ${{ github.event.workflow_run.pull_requests[0].number }}
           max-changed-lines: '1000'
           line-count-exclude: |
             uv.lock
@@ -33,14 +41,16 @@ jobs:
             src/**
             test/**
             docs/**
+            uv.lock
+            **/package-lock.json
           denylist: |
             src/auth/**
             **/*.pem
           dry-run: 'false'
 ```
 
-Pin `uses` to a reviewed commit SHA for production. This action requires no checkout
-and never executes PR code. While this repository is private, allow the consuming
+Pin `uses` to a reviewed commit SHA for production. This public action requires no
+checkout and never executes PR code. If you use a private copy, allow the consuming
 repositories to access it under **Settings → Actions → General → Access**.
 
 Enable **Allow GitHub Actions to create and approve pull requests** in the consuming
@@ -116,9 +126,11 @@ with:
   approval-regexp: '^Decision: APPROVE(?:\n|$)'
 ```
 
-The workflow evaluates every review event; the action verifies the configured
-reviewer against REST review metadata. Do not filter solely on the webhook reviewer
-username: Copilot webhook and REST identities can differ.
+The example runs after Copilot's review workflow completes and verifies the
+configured reviewer against REST review metadata. For another reviewer that uses
+review webhooks, use `pull_request_review` with `types: [submitted, edited, dismissed]`
+and `github.event.pull_request.number` for the PR number and concurrency group.
+Do not filter solely on webhook usernames: Copilot webhook and REST identities can differ.
 `approval-regexp` is JavaScript regex **source**, without `/.../` delimiters, compiled
 with the `u` flag. The body is trimmed and CRLF is normalized to LF. Inline multiline
 matching is not enabled; use explicit newline expressions or `[\s\S]` as needed.
@@ -139,11 +151,19 @@ Regex configuration must live in a trusted workflow, never be supplied from PR t
 | `denylist` | Empty | Newline-separated additional blocked globs |
 | `review-author` | `copilot-pull-request-reviewer[bot]` | Exact trusted reviewer username |
 | `approval-regexp` | Strict Copilot heading detector | Custom positive assessment regex |
-| `dry-run` | `false` | Evaluate without submitting approval |
+| `dry-run` | `false` | Evaluate without submitting approval or comments |
+| `post-comment` | `true` | Post a PR comment explaining each completed decision; set `false` to opt out |
 
-Outputs: `eligible`, `approved`, `head-sha`, `reviewer-review-id`, and `reasons`
+Outputs: `eligible`, `approved`, `head-sha`, `reviewer-review-id`, `decision-comment-id`, and `reasons`
 (a JSON array). A policy rejection is a successful run with `eligible=false`;
 configuration and API errors fail the action. Every run emits a job summary.
+
+By default, each completed evaluation also posts a PR comment saying **approved**,
+**blocked**, or **approval skipped**, with the evaluated commit, reviewer assessment,
+and decision reasons. A blocked decision is visible directly on the PR. Comments
+are posted once per run to retain decision history. Set `post-comment: 'false'` to
+disable them. Dry runs never submit reviews or comments. The existing
+`pull-requests: write` permission is sufficient for posting comments on PRs.
 
 PR state, head, base and reviewer assessment are checked again before submission.
 Approvals are pinned to the evaluated head SHA and existing action approvals are
@@ -155,7 +175,7 @@ does not retract an existing approval when rules or an assessment later change.
 ## Development
 
 This repository uses the action in [`.github/workflows/approval.yml`](.github/workflows/approval.yml).
-Copilot review submissions and edits trigger evaluation with a strict 1000-line
+Completion of Copilot's review workflow triggers evaluation with a strict 1000-line
 limit. Source, tests, README, license, action metadata, package manifests and
 `.gitignore` are allowlisted; all `.github/` changes are denied. Mandatory instruction
 protections still apply. The workflow pins the action to a reviewed commit; update

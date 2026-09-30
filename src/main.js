@@ -1,6 +1,6 @@
 import { readFileSync, appendFileSync } from 'node:fs';
 import { githubClient } from './github.js';
-import { approvePullRequest } from './approval.js';
+import { runApproval } from './decision.js';
 
 const input = name => process.env[`INPUT_${name.toUpperCase()}`]?.trim() ?? '';
 const globs = name => input(name).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
@@ -12,19 +12,23 @@ try {
   if (!/^\d+$/.test(limit)) throw new Error('max-changed-lines must be a nonnegative integer; 0 disables the limit.');
   const dryRun = input('dry-run') || 'false';
   if (!['true', 'false'].includes(dryRun)) throw new Error('dry-run must be true or false.');
-  const result = await approvePullRequest({
+  const postComment = input('post-comment') || 'true';
+  if (!['true', 'false'].includes(postComment)) throw new Error('post-comment must be true or false.');
+  const result = await runApproval({
     api: githubClient(input('github-token'), process.env.GITHUB_API_URL),
     repository: process.env.GITHUB_REPOSITORY,
     number: Number(input('pull-request-number') || event.pull_request?.number),
     policy: { maxChangedLines: Number(limit), lineCountExclude: globs('line-count-exclude'),
       allowlist: globs('allowlist'), denylist: globs('denylist') },
     dryRun: dryRun === 'true',
+    postComment: postComment === 'true',
     ...(input('review-author') ? { reviewAuthor: input('review-author') } : {}),
     ...(input('approval-regexp') ? { approvalRegexp: input('approval-regexp') } : {}),
   });
   if (process.env.GITHUB_OUTPUT) {
     for (const [key, value] of Object.entries({ eligible: result.eligible, approved: result.approved,
       'head-sha': result.headSha, 'reviewer-review-id': result.reviewerReviewId ?? '',
+      'decision-comment-id': result.decisionCommentId ?? '',
       reasons: JSON.stringify(result.reasons) })) appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
   }
   const summary = `gha-approval: ${result.approved ? 'approved' : result.eligible ? 'eligible' : 'blocked'}`;
