@@ -24,19 +24,21 @@ concurrency:
 
 jobs:
   approve:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.review.user.login == 'copilot-pull-request-reviewer[bot]'
+    # Verify the configured author using REST reviews inside the action rather
+    # than filtering webhook usernames, which can differ for Copilot.
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
       # Pin to reviewed action code; this privileged job never executes PR code.
       - name: Apply approval policy
-        uses: rooterkyberian/gha-approval@a98ca091889b4e77f68bbc50156e5dcdf2ce79d5
+        uses: rooterkyberian/gha-approval@a641305ae57c2dd1db417f1a85c52d21aac39022
         with:
           pull-request-number: ${{ github.event.pull_request.number || inputs.pull-request-number }}
           dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run && 'true' || 'false' }}
           max-changed-lines: '1000'
+          line-count-exclude: |
+            **/*.lock
+            **/package-lock.json
           review-author: copilot-pull-request-reviewer[bot]
           allowlist: |
             src/**
@@ -46,6 +48,7 @@ jobs:
             action.yml
             package.json
             package-lock.json
+            uv.lock
             .gitignore
           denylist: |
             .github/**

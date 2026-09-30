@@ -9,14 +9,15 @@ const escape = value => String(value).replace(/%/g, '%25').replace(/\r/g, '%0D')
 try {
   const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
   const limit = input('max-changed-lines') || '1000';
-  if (!/^\d+$/.test(limit)) throw new Error('max-changed-lines must be a positive integer.');
+  if (!/^\d+$/.test(limit)) throw new Error('max-changed-lines must be a nonnegative integer; 0 disables the limit.');
   const dryRun = input('dry-run') || 'false';
   if (!['true', 'false'].includes(dryRun)) throw new Error('dry-run must be true or false.');
   const result = await approvePullRequest({
     api: githubClient(input('github-token'), process.env.GITHUB_API_URL),
     repository: process.env.GITHUB_REPOSITORY,
     number: Number(input('pull-request-number') || event.pull_request?.number),
-    policy: { maxChangedLines: Number(limit), allowlist: globs('allowlist'), denylist: globs('denylist') },
+    policy: { maxChangedLines: Number(limit), lineCountExclude: globs('line-count-exclude'),
+      allowlist: globs('allowlist'), denylist: globs('denylist') },
     dryRun: dryRun === 'true',
     ...(input('review-author') ? { reviewAuthor: input('review-author') } : {}),
     ...(input('approval-regexp') ? { approvalRegexp: input('approval-regexp') } : {}),
