@@ -159,6 +159,8 @@ limit. Source, tests, README, license, action metadata, package manifests and
 `.gitignore` are allowlisted; all `.github/` changes are denied. Mandatory instruction
 protections still apply. The workflow pins the action to a reviewed commit; update
 that SHA deliberately when adopting action changes.
+Lockfiles matching `**/*.lock` or `**/package-lock.json` are excluded from its line
+count; `uv.lock` and `package-lock.json` are allowlisted so they can qualify.
 
 The workflow can also be dispatched manually with a PR number; manual runs default
 to dry run. Copilot must have reviewed the current PR head and recommended approval
