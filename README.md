@@ -139,11 +139,19 @@ Regex configuration must live in a trusted workflow, never be supplied from PR t
 | `denylist` | Empty | Newline-separated additional blocked globs |
 | `review-author` | `copilot-pull-request-reviewer[bot]` | Exact trusted reviewer username |
 | `approval-regexp` | Strict Copilot heading detector | Custom positive assessment regex |
-| `dry-run` | `false` | Evaluate without submitting approval |
+| `dry-run` | `false` | Evaluate without submitting approval or comments |
+| `post-comment` | `true` | Post a PR comment explaining each completed decision; set `false` to opt out |
 
-Outputs: `eligible`, `approved`, `head-sha`, `reviewer-review-id`, and `reasons`
+Outputs: `eligible`, `approved`, `head-sha`, `reviewer-review-id`, `decision-comment-id`, and `reasons`
 (a JSON array). A policy rejection is a successful run with `eligible=false`;
 configuration and API errors fail the action. Every run emits a job summary.
+
+By default, each completed evaluation also posts a PR comment saying **approved**,
+**blocked**, or **approval skipped**, with the evaluated commit, reviewer assessment,
+and decision reasons. A blocked decision is visible directly on the PR. Comments
+are posted once per run to retain decision history. Set `post-comment: 'false'` to
+disable them. Dry runs never submit reviews or comments. The existing
+`pull-requests: write` permission is sufficient for posting comments on PRs.
 
 PR state, head, base and reviewer assessment are checked again before submission.
 Approvals are pinned to the evaluated head SHA and existing action approvals are
