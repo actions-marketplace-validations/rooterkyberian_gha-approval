@@ -14,6 +14,8 @@ try {
   if (!['true', 'false'].includes(dryRun)) throw new Error('dry-run must be true or false.');
   const postComment = input('post-comment') || 'true';
   if (!['true', 'false'].includes(postComment)) throw new Error('post-comment must be true or false.');
+  const firstReviewOnly = input('first-review-only') || 'false';
+  if (!['true', 'false'].includes(firstReviewOnly)) throw new Error('first-review-only must be true or false.');
   const result = await runApproval({
     api: githubClient(input('github-token'), process.env.GITHUB_API_URL),
     repository: process.env.GITHUB_REPOSITORY,
@@ -22,6 +24,7 @@ try {
       allowlist: globs('allowlist'), denylist: globs('denylist') },
     dryRun: dryRun === 'true',
     postComment: postComment === 'true',
+    firstReviewOnly: firstReviewOnly === 'true',
     ...(input('review-author') ? { reviewAuthor: input('review-author') } : {}),
     ...(input('approval-regexp') ? { approvalRegexp: input('approval-regexp') } : {}),
   });

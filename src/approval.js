@@ -1,10 +1,11 @@
 import { evaluatePolicy } from './policy.js';
-import { copilotLogin, defaultApprovalRegexp, latestReviewerReview, recommendsApproval } from './copilot.js';
+import { copilotLogin, defaultApprovalRegexp, isFirstReviewerReview, latestReviewerReview, recommendsApproval } from './copilot.js';
 
 const marker = '<!-- gha-approval -->';
 
 export async function approvePullRequest({ api, repository, number, policy, dryRun = false,
-  reviewAuthor = copilotLogin, approvalRegexp = defaultApprovalRegexp }) {
+  reviewAuthor = copilotLogin, approvalRegexp = defaultApprovalRegexp, firstReviewOnly = false }) {
+  if (typeof firstReviewOnly !== 'boolean') throw new Error('first-review-only must be true or false.');
   if (!/^[A-Za-z0-9-]+(?:\[bot\])?$/.test(reviewAuthor)) throw new Error('review-author must be a GitHub username.');
   if (!approvalRegexp) throw new Error('approval-regexp cannot be empty.');
   const regexp = new RegExp(approvalRegexp, 'u');
@@ -20,6 +21,9 @@ export async function approvePullRequest({ api, repository, number, policy, dryR
   const result = evaluatePolicy(pr, files, policy);
   const review = latestReviewerReview(reviews, sha, reviewAuthor);
   if (!recommendsApproval(review, regexp)) result.reasons.push(`Latest ${reviewAuthor} review for the current commit does not explicitly recommend approval.`);
+  if (firstReviewOnly && review && !isFirstReviewerReview(reviews, review, reviewAuthor)) {
+    result.reasons.push(`first-review-only is enabled: ${reviewAuthor} has already submitted more than one review on this pull request.`);
+  }
   result.eligible = result.reasons.length === 0;
   result.approved = false;
   result.headSha = sha;
@@ -36,7 +40,8 @@ export async function approvePullRequest({ api, repository, number, policy, dryR
   const freshReview = latestReviewerReview(freshReviews, sha, reviewAuthor);
   if (fresh.head?.sha !== sha || fresh.base?.sha !== pr.base.sha || fresh.state !== 'open' || fresh.draft !== false ||
       fresh.additions !== pr.additions || fresh.deletions !== pr.deletions || fresh.changed_files !== pr.changed_files ||
-      freshReview?.id !== review.id || !recommendsApproval(freshReview, regexp)) {
+      freshReview?.id !== review.id || !recommendsApproval(freshReview, regexp) ||
+      (firstReviewOnly && !isFirstReviewerReview(freshReviews, freshReview, reviewAuthor))) {
     result.eligible = false;
     result.reasons.push('Pull request or reviewer assessment changed during evaluation.');
     return result;
