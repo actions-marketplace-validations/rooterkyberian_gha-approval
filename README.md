@@ -94,6 +94,15 @@ Supplying a token cannot bypass repository or organization permission restrictio
 - The latest submitted review by the configured author **on the current head SHA**
   must be `COMMENTED` or `APPROVED` and match the approval regex. Dismissed reviews,
   requests for changes, missing reviews and stale reviews do not qualify.
+- Set `first-review-only: 'true'` to allow approval only on the configured reviewer's
+  first submitted review across the **entire PR**, rather than the first review of
+  each commit. This is optional and defaults to `false`. Earlier commits and
+  dismissed reviews count toward the history; other reviewers and pending drafts
+  do not. Once a second review is submitted, this action blocks approval even if
+  that review recommends it. Rerunning the action after the first review is allowed
+  while it remains the only submitted review and is still for the current head.
+  This can help avoid relying on follow-up Copilot assessments that repeat earlier
+  comments after code changes.
 
 Globs are relative to the repository root. `*` matches within one directory, `**`
 matches across directories, `?` matches one non-slash character, and `**/` includes
@@ -155,6 +164,7 @@ Regex configuration must live in a trusted workflow, never be supplied from PR t
 | `allowlist` | Empty | Newline-separated allowed globs |
 | `denylist` | Empty | Newline-separated additional blocked globs |
 | `review-author` | `copilot-pull-request-reviewer[bot]` | Exact trusted reviewer username |
+| `first-review-only` | `false` | Require exactly one submitted review by the configured reviewer across the entire PR |
 | `approval-regexp` | Strict Copilot heading detector | Custom positive assessment regex |
 | `dry-run` | `false` | Evaluate without submitting approval or comments |
 | `post-comment` | `true` | Post a PR comment explaining each completed decision; set `false` to opt out |
@@ -170,7 +180,8 @@ are posted once per run to retain decision history. Set `post-comment: 'false'` 
 disable them. Dry runs never submit reviews or comments. The existing
 `pull-requests: write` permission is sufficient for posting comments on PRs.
 
-PR state, head, base and reviewer assessment are checked again before submission.
+PR state, head, base, reviewer assessment and the optional first-review requirement
+are checked again before submission.
 Approvals are pinned to the evaluated head SHA and existing action approvals are
 skipped on reruns. Serialize workflow runs with the concurrency group shown above.
 GitHub does not offer an atomic compare-and-approve API: enable dismissal of stale
@@ -207,7 +218,8 @@ npm test
 
 Tests cover policy boundaries, disabled limits, line-count exclusions and renames,
 protected instructions, list precedence,
-review parsing and identity, custom regexes, stale/newer reviews, pagination, dry runs,
+review parsing and identity, custom regexes, stale/newer reviews, first-review-only
+history and concurrent reviews, pagination, dry runs,
 duplicate approvals and changes detected before submission. CI runs the same tests.
 
 Licensed under [MIT](LICENSE).

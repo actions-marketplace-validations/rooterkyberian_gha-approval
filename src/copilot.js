@@ -1,10 +1,19 @@
 export const copilotLogin = 'copilot-pull-request-reviewer[bot]';
 export const defaultApprovalRegexp = '^(?:<!-- ccr-overview-v2 -->\\n\\s*## Copilot review overview\\n\\s*)?### 🟢 Approval recommended[ \\t]*(?:\\n|$)';
 
-export function latestReviewerReview(reviews, sha, author = copilotLogin) {
+function submittedReviewerReviews(reviews, author) {
   return reviews.filter(review => review.user?.login === author &&
-    (!author.endsWith('[bot]') || review.user?.type === 'Bot') && review.commit_id === sha && review.submitted_at)
+    (!author.endsWith('[bot]') || review.user?.type === 'Bot') && review.submitted_at);
+}
+
+export function latestReviewerReview(reviews, sha, author = copilotLogin) {
+  return submittedReviewerReviews(reviews, author).filter(review => review.commit_id === sha)
     .sort((a, b) => Date.parse(b.submitted_at) - Date.parse(a.submitted_at) || b.id - a.id)[0];
+}
+
+export function isFirstReviewerReview(reviews, review, author = copilotLogin) {
+  const submitted = submittedReviewerReviews(reviews, author);
+  return submitted.length === 1 && submitted[0].id === review?.id;
 }
 
 export function recommendsApproval(review, regexp = new RegExp(defaultApprovalRegexp, 'u')) {

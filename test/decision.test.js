@@ -51,6 +51,22 @@ test('comment opt-out works for approved and blocked PRs', async () => {
   assert.equal(blocked.writes.length, 0);
 });
 
+test('first-review-only rejection posts an explanation without submitting an approval', async () => {
+  const s = scenario({ reviews: [
+    { id: 9, user: { login: copilotLogin, type: 'Bot' }, state: 'DISMISSED', body: '',
+      commit_id: 'old', submitted_at: '2026-09-29T22:00:00Z' },
+    { id: 10, user: { login: copilotLogin, type: 'Bot' }, state: 'COMMENTED', body: '### 🟢 Approval recommended',
+      commit_id: 'head', submitted_at: '2026-09-30T22:00:00Z' },
+  ] });
+  const result = await s.run({ firstReviewOnly: true });
+  assert.equal(result.eligible, false);
+  assert.equal(result.approved, false);
+  assert.equal(s.writes.length, 1);
+  assert.match(s.writes[0].path, /\/comments$/);
+  assert.match(s.writes[0].body.body, /gha-approval: blocked/);
+  assert.match(s.writes[0].body.body, /first-review-only.*more than one review/);
+});
+
 test('dry runs never submit reviews or decision comments', async () => {
   for (const options of [{}, { reviews: [] }]) {
     const s = scenario(options);

@@ -103,6 +103,15 @@ Set `post-comment: 'false'` to disable decision comments. Dry runs never post an
 approval or comment. The [README](../README.md#rules) describes all glob rules and
 mandatory instruction protections.
 
+Optionally add `first-review-only: 'true'` under `with` to permit automatic approval
+only after Copilot's first submitted review of the entire PR. The default is
+`false`. Reviews of earlier commits and dismissed reviews still count, so a second
+Copilot review blocks approval even if it recommends approval. Other reviewers and
+pending drafts do not count. Use this option if follow-up reviews that repeat old
+comments should not authorize approval; subsequent reviews require human approval.
+The first review must still recommend approval for the current head and pass every
+other rule.
+
 `workflow_run` executes the workflow from the default branch after Copilot's
 review workflow completes. The filter uses its registered workflow name,
 **Copilot**; the displayed run title, **Running Copilot Code Review**, is not the
@@ -198,7 +207,7 @@ enter the PR number, and leave **dry-run** checked. The job summary includes
 | Workflow awaiting approval | Approve the run, rerun as a maintainer, or dispatch manually; the tested Copilot setting and `workflow_run` did not remove this gate |
 | Green job, no approving review | Decision comment/job summary: allowlist, denylist, line limit, draft state, stale review, or dry run |
 | Copilot recommends approval, action blocks | Recommendation is only one requirement; every changed path and the size limit must pass too |
-| A new commit loses approval | Expected when stale approvals are dismissed; request a fresh review of that head |
+| A new commit loses approval | Expected when stale approvals are dismissed; request a fresh review of that head, or human approval when `first-review-only` is enabled |
 | API returns 403 | Job token has PR write permission and repository/organization approval policies allow it |
 | Action cannot be downloaded | Version exists, allowed-action policy permits it, and private-action sharing is configured |
 | Approval exists but merge is blocked | Required CI, branch freshness, additional review requirements, or repository policies |

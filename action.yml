@@ -28,6 +28,9 @@ inputs:
   review-author:
     description: Exact GitHub username whose latest review can authorize approval.
     default: copilot-pull-request-reviewer[bot]
+  first-review-only:
+    description: Only allow approval when the configured reviewer has exactly one submitted review across the entire PR, including dismissed reviews and earlier commits.
+    default: 'false'
   approval-regexp:
     description: JavaScript regular expression source tested against the trimmed review body, with the Unicode flag. Empty uses the strict Copilot heading detector.
 outputs:
